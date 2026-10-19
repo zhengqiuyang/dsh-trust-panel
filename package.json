@@ -7,13 +7,14 @@
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
-    "./client": "./lib/client/index.js"
+    "./client": "./client/index.js"
   },
   "files": [
     "lib",
     "cordis.patch.yml",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "client"
   ],
   "dsh": {
     "bundle": {
