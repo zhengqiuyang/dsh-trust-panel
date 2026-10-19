@@ -1,0 +1,6 @@
+# Applied when a profile lists this bundle. The host half runs in the dsh
+# process; the web client half is loaded by the web app via the dsh.client
+# manifest in package.json.
+- insert:
+    - id: dsh-trust-panel
+      name: dsh-trust-panel
