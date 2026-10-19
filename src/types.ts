@@ -26,9 +26,17 @@ export interface TrustEvent {
   time: string;
   channel: Channel;
   outcome: Outcome;
-  /** One short plain-language sentence, already translated. */
+  /** Translation key for the headline sentence (client renders per locale). */
+  titleKey: string;
+  /** Interpolation params for {@link titleKey}. */
+  titleParams?: Record<string, string | number>;
+  /** English fallback for the headline (also used by non-web consumers). */
   title: string;
-  /** Optional second sentence with specifics (paths, URLs, counts). */
+  /** Translation key for the optional detail sentence. */
+  detailKey?: string;
+  /** Interpolation params for {@link detailKey}. */
+  detailParams?: Record<string, string | number>;
+  /** English fallback detail sentence with specifics (paths, URLs, counts). */
   detail?: string;
   /** Truncated raw evidence for the expandable detail view. */
   evidence?: string;
@@ -40,9 +48,15 @@ export interface ChannelStatus {
   channel: Channel;
   /** true if the underlying plugin/data source was found and working */
   present: boolean;
-  /** human channel label, e.g. "What the agent reads" */
+  /** translation key for the human channel label, e.g. "What the agent reads" */
+  labelKey: string;
+  /** English fallback label */
   label: string;
-  /** one-line plain-language state */
+  /** translation key for the one-line plain-language state */
+  noteKey: string;
+  /** interpolation params for {@link noteKey} */
+  noteParams?: Record<string, string | number>;
+  /** English fallback note */
   note: string;
   /** events in the current window for this channel */
   count: number;

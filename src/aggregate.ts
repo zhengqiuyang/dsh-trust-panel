@@ -192,17 +192,29 @@ export async function aggregate(
                   : ch === 'composition'
                     ? freezeBaseline !== null
                     : true; // read/egress/leave are live listeners, always on
+      const promptTime = ch === 'prompt' && promptBaseline?.time !== undefined ? promptBaseline.time : undefined;
+      const freezeProfile =
+        ch === 'composition' && freezeBaseline?.profile !== undefined ? freezeBaseline.profile : undefined;
       return {
         channel: ch as ChannelStatus['channel'],
         present,
+        labelKey: `ch.${ch}`,
         label: CHANNEL_LABELS[ch],
-        note: present
-          ? ch === 'prompt' && promptBaseline?.time
-            ? `checkpoint taken ${promptBaseline.time}`
-            : ch === 'composition' && freezeBaseline?.profile
-              ? `profile "${freezeBaseline.profile}" pinned`
-              : 'watching'
-          : 'not installed',
+        noteKey: !present
+          ? 'note.notInstalled'
+          : promptTime !== undefined
+            ? 'note.checkpoint'
+            : freezeProfile !== undefined
+              ? 'note.pinned'
+              : 'note.watching',
+        noteParams: promptTime !== undefined ? ({ time: promptTime } as Record<string, string | number>) : freezeProfile !== undefined ? ({ profile: freezeProfile } as Record<string, string | number>) : undefined,
+        note: !present
+          ? 'not installed'
+          : promptTime !== undefined
+            ? `checkpoint taken ${promptTime}`
+            : freezeProfile !== undefined
+              ? `profile "${freezeProfile}" pinned`
+              : 'watching',
         count: counts.get(ch) ?? 0,
       };
     }

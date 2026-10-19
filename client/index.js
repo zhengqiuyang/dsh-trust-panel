@@ -2,6 +2,12 @@
  * Client half of dsh-trust-panel, authored directly in the dsh web
  * module-table format (window.__ModuleLoader__): react is provided by the
  * runtime's module table, not bundled. No build step for this file.
+ *
+ * i18n follows the DSH pattern: the client attaches the `locale` service
+ * (@deepseek-ai/dsh-client-locale); `t()` resolves the active locale from
+ * its snapshot and interpolates {params}. Events arrive from the host as
+ * translation keys + params (with English fallbacks), so the panel switches
+ * languages live without a host restart.
  */
 // eslint-disable-next-line no-undef
 window.__ModuleLoader__.load({
@@ -12,27 +18,175 @@ window.__ModuleLoader__.load({
     const useState = react.useState;
     const useEffect = react.useEffect;
 
-    const inject = ['slots', 'sessions'];
+    const inject = ['slots', 'sessions', 'locale'];
 
     const POLL_MS = 5000;
+
+    /* ---------------- i18n ---------------- */
+
+    const en = {
+      tabTitle: 'Trust',
+      loading: 'Loading trust panel…',
+      noEvents: 'No events yet.',
+      'status.ok': 'All clear — nothing suspicious reached your agent.',
+      'status.activity': 'Caught a few things — all handled, nothing needs you.',
+      'status.attention': 'Something needs your decision — see below.',
+      'ch.read': 'What the agent reads',
+      'ch.write': 'What the agent changes',
+      'ch.custody': 'The activity record',
+      'ch.toolsurface': 'The tools it can use',
+      'ch.leave': 'Leftovers in your workspace',
+      'ch.egress': 'Where data is sent',
+      'ch.prompt': 'The instructions it starts with',
+      'ch.composition': 'The plugins that are loaded',
+      'ch.memory': 'What it remembers',
+      'note.watching': 'watching',
+      'note.notInstalled': 'not installed',
+      'note.checkpoint': 'checkpoint taken {time}',
+      'note.pinned': 'profile "{profile}" pinned',
+      'off': 'off',
+      'ago.s': '{n}s ago', 'ago.m': '{n}m ago', 'ago.h': '{n}h ago', 'ago.d': '{n}d ago',
+      'ev.read.override': 'Something the agent read tried to override your instructions. It was quarantined — the agent did not follow it.',
+      'ev.read.promptExfil': 'Something the agent read asked it to print your system prompt. It was quarantined — the agent did not follow it.',
+      'ev.read.credsExfil': 'Something the agent read asked it to send your credentials somewhere. It was quarantined — the agent did not follow it.',
+      'ev.read.envProbe': 'Something the agent read asked it to probe your environment variables. It was quarantined — the agent did not follow it.',
+      'ev.read.hiddenUnicode': 'Something the agent read hid instructions inside invisible characters. It was quarantined — the agent did not follow it.',
+      'ev.read.agentDirective': 'Something the agent read addressed it as if it were the user. It was quarantined — the agent did not follow it.',
+      'ev.read.rulesBackdoor': 'Something the agent read tried to rewrite the agent safety rules. It was quarantined — the agent did not follow it.',
+      'ev.read.resourceLure': 'Something the agent read lured it toward a resource. It was quarantined — the agent did not follow it.',
+      'ev.read.suspicious': 'Something the agent read contained suspicious instructions. It was quarantined — the agent did not follow it.',
+      'ev.read.detail': 'Found while reading {tool}. Detail: {rule} ({severity}).',
+      'ev.write.denied': 'The agent tried to change a file it promised not to touch. Blocked.',
+      'ev.write.deniedDetail': 'Denied write to {path} (rule: {rule}). If this is what you asked for, adjust the rule and retry.',
+      'ev.write.residue': 'A completed write left suspicious leftovers behind.',
+      'ev.write.residueDetail': '{path}: {kinds} residue detected after writing.',
+      'ev.custody.intact': 'The activity record is intact — {count} entries, nothing was altered.',
+      'ev.custody.intactDetail': 'Hash chain verified from the first entry to the head ({head}…).',
+      'ev.custody.broken': 'The activity record does not add up — an entry may have been altered or removed.',
+      'ev.custody.brokenDetail': 'Chain check failed at entry #{seq} ({reason}). Review who could have edited the ledger file.',
+      'ev.tools.drift': 'The tools available to your agent changed since the last checkpoint.',
+      'ev.tools.driftDetail': '{parts}: {names}. If you did not install or update anything, look into it.',
+      'ev.leave.clean': 'Workspace scan found nothing that needs cleanup.',
+      'ev.leave.cleanDetail': '{protected} protected items checked.',
+      'ev.leave.review': 'Workspace scan found {count} leftover item(s) worth reviewing.',
+      'ev.leave.reviewDetail': 'Leftover files from finished work can confuse the agent later. Run the janitor_scan tool for the full list.',
+      'ev.egress.denied': 'The agent tried to send data to a website that is not on your allow list. Blocked.',
+      'ev.egress.deniedDetail': 'Destination: {urls}. Add it to the allow list if this send was intended.',
+      'ev.prompt.drift': 'The instructions your agent starts every session with have changed.',
+      'ev.prompt.driftDetail': 'Changed sections: {fields}. This is expected after a plugin update — unexpected if you changed nothing.',
+      'ev.composition.drift': 'The set of installed plugins changed since the last checkpoint.',
+      'ev.composition.driftDetail': 'Changed: {fields}. Verify you intended this change before continuing.',
+      'ev.memory.survived': 'A long conversation was summarized — all {count} of your standing instructions survived.',
+      'ev.memory.lost': 'A long conversation was summarized — the agent forgot {lost} of your instructions. They were re-inserted automatically.',
+      'ev.memory.lostDetail': '{examples}',
+    };
+
+    const zh = {
+      tabTitle: '信任',
+      loading: '信任面板加载中…',
+      noEvents: '还没有事件。',
+      'status.ok': '一切正常——没有可疑内容接触到你的 agent。',
+      'status.activity': '拦下了几件事——都已处理,不需要你操作。',
+      'status.attention': '有情况需要你决定——见下方。',
+      'ch.read': 'Agent 读到的内容',
+      'ch.write': 'Agent 改动的内容',
+      'ch.custody': '活动记录',
+      'ch.toolsurface': '它能用的工具',
+      'ch.leave': '工作区里的残留',
+      'ch.egress': '数据发往哪里',
+      'ch.prompt': '它开场的指令',
+      'ch.composition': '加载的插件',
+      'ch.memory': '它记住的东西',
+      'note.watching': '监控中',
+      'note.notInstalled': '未安装',
+      'note.checkpoint': '检查点建立于 {time}',
+      'note.pinned': '配置 "{profile}" 已锁定',
+      'off': '关',
+      'ago.s': '{n} 秒前', 'ago.m': '{n} 分钟前', 'ago.h': '{n} 小时前', 'ago.d': '{n} 天前',
+      'ev.read.override': 'Agent 读到的内容里有东西想推翻你的指令。已隔离——agent 没有理会它。',
+      'ev.read.promptExfil': 'Agent 读到的内容里有东西让它打印系统提示词。已隔离——agent 没有理会它。',
+      'ev.read.credsExfil': 'Agent 读到的内容里有东西想把你的密钥发到别处。已隔离——agent 没有理会它。',
+      'ev.read.envProbe': 'Agent 读到的内容里有东西想让它探测你的环境变量。已隔离——agent 没有理会它。',
+      'ev.read.hiddenUnicode': 'Agent 读到的内容把指令藏在不可见字符里。已隔离——agent 没有理会它。',
+      'ev.read.agentDirective': 'Agent 读到的内容里有东西冒充用户对它下指令。已隔离——agent 没有理会它。',
+      'ev.read.rulesBackdoor': 'Agent 读到的内容里有东西想改写安全规则。已隔离——agent 没有理会它。',
+      'ev.read.resourceLure': 'Agent 读到的内容里有东西诱导它访问某个资源。已隔离——agent 没有理会它。',
+      'ev.read.suspicious': 'Agent 读到的内容里含可疑指令。已隔离——agent 没有理会它。',
+      'ev.read.detail': '读取 {tool} 时发现。详情:{rule}({severity})。',
+      'ev.write.denied': 'Agent 想改它承诺不碰的文件。已拦截。',
+      'ev.write.deniedDetail': '对 {path} 的写入被拒(规则:{rule})。如果这正是你要的,调整规则后重试。',
+      'ev.write.residue': '一次写入完成后留下了可疑残留。',
+      'ev.write.residueDetail': '{path}:写入后检测到 {kinds} 残留。',
+      'ev.custody.intact': '活动记录完整——共 {count} 条,没有任何改动。',
+      'ev.custody.intactDetail': '哈希链从第一条校验到链头({head}…)。',
+      'ev.custody.broken': '活动记录对不上——可能有条目被篡改或删除。',
+      'ev.custody.brokenDetail': '链校验在第 #{seq} 条失败({reason})。检查一下谁可能改过台账文件。',
+      'ev.tools.drift': '你的 agent 可用的工具相对上次检查点发生了变化。',
+      'ev.tools.driftDetail': '{parts}:{names}。如果你没有安装或更新任何东西,需要查一下。',
+      'ev.leave.clean': '工作区扫描未发现需要清理的东西。',
+      'ev.leave.cleanDetail': '已检查 {protected} 个受保护条目。',
+      'ev.leave.review': '工作区扫描发现 {count} 个值得查看的残留。',
+      'ev.leave.reviewDetail': '已完成工作的残留文件之后可能干扰 agent。运行 janitor_scan 工具查看完整清单。',
+      'ev.egress.denied': 'Agent 想把数据发到不在你允许名单上的网站。已拦截。',
+      'ev.egress.deniedDetail': '目的地:{urls}。如果这次发送是你 intended 的,把它加进允许名单。',
+      'ev.prompt.drift': '你的 agent 每次会话开场的指令发生了变化。',
+      'ev.prompt.driftDetail': '变化的章节:{fields}。插件更新后出现是正常的;你什么都没改过就出现则要留意。',
+      'ev.composition.drift': '已安装插件的组合相对上次检查点发生了变化。',
+      'ev.composition.driftDetail': '变化:{fields}。继续之前确认这是你主动做的变更。',
+      'ev.memory.survived': '一段长对话被摘要压缩——你的 {count} 条常驻指令全部保留。',
+      'ev.memory.lost': '一段长对话被摘要压缩——agent 忘了 {lost} 条你的指令。已自动重新注入。',
+      'ev.memory.lostDetail': '{examples}',
+    };
+
+    let localeService;
+    function attachLocale(service) {
+      localeService = service;
+    }
+    function activeLocale() {
+      let active = '';
+      try {
+        active = localeService?.getSnapshot?.().active ?? '';
+      } catch {
+        active = '';
+      }
+      if (active.startsWith('zh')) return 'zh';
+      if (active.startsWith('en')) return 'en';
+      // fall back to the browser language when no service is attached
+      const nav = typeof navigator !== 'undefined' ? navigator.language : 'en';
+      return nav && nav.toLowerCase().startsWith('zh') ? 'zh' : 'en';
+    }
+    function t(key, params, fallback) {
+      const dict = activeLocale() === 'zh' ? zh : en;
+      let text = dict[key] ?? en[key] ?? fallback ?? key;
+      if (params !== undefined) {
+        for (const [k, v] of Object.entries(params)) {
+          text = text.split(`{${k}}`).join(String(v));
+        }
+      }
+      return text;
+    }
+
+    /* ---------------- rendering ---------------- */
 
     const STATUS_COLOR = { ok: '#22c55e', activity: '#eab308', attention: '#ef4444' };
     const STATUS_DOT = { ok: '●', activity: '●', attention: '▲' };
 
     function timeAgo(iso) {
       const s = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 1000));
-      if (s < 60) return `${s}s ago`;
-      if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-      if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-      return `${Math.floor(s / 86400)}d ago`;
+      if (s < 60) return t('ago.s', { n: s });
+      if (s < 3600) return t('ago.m', { n: Math.floor(s / 60) });
+      if (s < 86400) return t('ago.h', { n: Math.floor(s / 3600) });
+      return t('ago.d', { n: Math.floor(s / 86400) });
     }
 
     function EventCard(ev) {
       const color = ev.outcome === 'attention' ? '#ef4444' : '#6b7280';
+      const title = t(ev.titleKey, ev.titleParams, ev.title);
+      const detail = ev.detailKey !== undefined ? t(ev.detailKey, ev.detailParams, ev.detail) : ev.detail;
       return h(
         'div',
         {
-          key: `${ev.time}-${ev.channel}-${ev.title}`,
+          key: `${ev.time}-${ev.channel}-${ev.titleKey}`,
           style: {
             borderLeft: `3px solid ${color}`,
             padding: '8px 10px',
@@ -44,8 +198,8 @@ window.__ModuleLoader__.load({
           },
         },
         h('div', { style: { color: '#9ca3af', fontSize: 10 } }, `${timeAgo(ev.time)} · ${ev.source}`),
-        h('div', { style: { marginTop: 2 } }, ev.title),
-        ev.detail !== undefined ? h('div', { style: { color: '#9ca3af', marginTop: 2 } }, ev.detail) : null
+        h('div', { style: { marginTop: 2 } }, title),
+        detail !== undefined ? h('div', { style: { color: '#9ca3af', marginTop: 2 } }, detail) : null
       );
     }
 
@@ -56,8 +210,12 @@ window.__ModuleLoader__.load({
           key: ch.channel,
           style: { display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '3px 0', opacity: ch.present ? 1 : 0.4 },
         },
-        h('span', null, ch.label),
-        h('span', { style: { color: ch.count > 0 ? '#eab308' : '#6b7280' } }, ch.present ? (ch.count > 0 ? String(ch.count) : '—') : 'off')
+        h('span', { title: t(ch.noteKey, ch.noteParams, ch.note) }, t(ch.labelKey, undefined, ch.label)),
+        h(
+          'span',
+          { style: { color: ch.count > 0 ? '#eab308' : '#6b7280' } },
+          ch.present ? (ch.count > 0 ? String(ch.count) : '—') : t('off')
+        )
       );
     }
 
@@ -83,7 +241,7 @@ window.__ModuleLoader__.load({
       }, []);
 
       if (summary === null) {
-        return h('div', { style: { padding: 12, fontSize: 12, color: '#6b7280' } }, 'Loading trust panel…');
+        return h('div', { style: { padding: 12, fontSize: 12, color: '#6b7280' } }, t('loading'));
       }
 
       const color = STATUS_COLOR[summary.status] ?? '#6b7280';
@@ -94,7 +252,7 @@ window.__ModuleLoader__.load({
           'div',
           { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 } },
           h('span', { style: { color, fontSize: 18 } }, STATUS_DOT[summary.status] ?? '●'),
-          h('span', { style: { fontSize: 13, fontWeight: 600 } }, summary.statusText)
+          h('span', { style: { fontSize: 13, fontWeight: 600 } }, t(`status.${summary.status}`, undefined, summary.statusText))
         ),
         h(
           'div',
@@ -102,12 +260,21 @@ window.__ModuleLoader__.load({
           summary.channels.map((ch) => ChannelRow(ch))
         ),
         summary.events.length === 0
-          ? h('div', { style: { fontSize: 12, color: '#6b7280' } }, 'No events yet.')
+          ? h('div', { style: { fontSize: 12, color: '#6b7280' } }, t('noEvents'))
           : summary.events.map((ev) => EventCard(ev))
       );
     }
 
     function apply(ctx) {
+      // DSH i18n: attach the locale service so t() follows the host's
+      // language preference (falls back to the browser language without it).
+      try {
+        const service = ctx.get('locale');
+        if (service !== undefined) attachLocale(service);
+      } catch (error) {
+        // no locale service in this composition — browser language is used
+      }
+
       // The tab registry is a service: registering from the slot declaration
       // alone never lands (the declaration fires before the service appears).
       ctx.inject(['sidebarRightTabs'], (injected) => {
@@ -117,7 +284,7 @@ window.__ModuleLoader__.load({
         const offTab = tabs.register({
           id: 'dsh-trust-panel:main',
           kind: 'trust-panel',
-          title: () => 'Trust',
+          title: () => t('tabTitle', undefined, 'Trust'),
         });
 
         const slots = ctx.slots;
@@ -147,7 +314,12 @@ window.__ModuleLoader__.load({
       });
     }
 
-    const exportsObj = { name: 'dsh-trust-panel/client', inject, apply };
+    const exportsObj = {
+      name: 'dsh-trust-panel/client',
+      inject,
+      apply,
+      _i18n: { attachLocale, t, hasKey: (key) => key in zh && key in en },
+    };
     return exportsObj;
   },
 });

@@ -159,4 +159,60 @@ function ok(name) {
   ok('aggregate: ledgers + chain verify + drift + tamper detection + empty case');
 }
 
+/* ---------- i18n: every host titleKey must exist in both client dicts ---------- */
+
+{
+  const loaded = {};
+  globalThis.window = { __ModuleLoader__: { load: (def) => { loaded.factory = def.factory; } } };
+  const mod = {};
+  const require = (name) => {
+    if (name === 'react') {
+      return { createElement: () => null, useState: () => [null, () => {}], useEffect: () => {} };
+    }
+    throw new Error(`unexpected require: ${name}`);
+  };
+  const { readFile } = await import('node:fs/promises');
+  const src = await readFile(new URL('../client/index.js', import.meta.url), 'utf8');
+  // eslint-disable-next-line no-eval
+  (0, eval)(src);
+  const clientExports = loaded.factory(require);
+  const hasKey = clientExports._i18n.hasKey;
+
+  // exercise every translate.ts factory and collect its title/detail keys
+  const events = [
+    readFindingEvent('INSTR_OVERRIDE', 'high', 'x', 'read'),
+    readFindingEvent('system_prompt_exfil', 'high', 'x', 'read'),
+    readFindingEvent('CREDS_EXFIL', 'high', 'x', 'read'),
+    readFindingEvent('ENV_PROBE', 'high', 'x', 'read'),
+    readFindingEvent('HIDDEN_UNICODE', 'medium', 'x', 'read'),
+    readFindingEvent('AGENT_DIRECTIVE', 'high', 'x', 'read'),
+    readFindingEvent('RULES_BACKDOOR', 'high', 'x', 'read'),
+    readFindingEvent('RESOURCE_LURE', 'medium', 'x', 'read'),
+    readFindingEvent('TOTALLY_UNKNOWN_RULE', 'high', 'x', 'read'),
+    prGateEvent({ time: 't', tool: 'write', action: 'denied', path: 'a', matchedBy: 'r' }),
+    prGateEvent({ time: 't', tool: 'write', action: 'written', path: 'a', residueKinds: ['secrets'] }),
+    compactionEvent({ time: 't', constraints: 2, kept: 2, lost: [] }),
+    compactionEvent({ time: 't', constraints: 2, kept: 0, lost: [{ seq: 1, text: 'x' }] }),
+    egressDeniedEvent(['https://a.example/']),
+  ];
+  const keys = new Set(['status.ok', 'status.activity', 'status.attention', 'loading', 'noEvents', 'tabTitle', 'off']);
+  for (const ev of events) {
+    keys.add(ev.titleKey);
+    if (ev.detailKey !== undefined) keys.add(ev.detailKey);
+  }
+  const missing = [...keys].filter((k) => !hasKey(k));
+  assert.deepStrictEqual(missing, [], `missing i18n keys: ${missing.join(', ')}`);
+
+  // zh rendering through the module's own t()
+  const t = clientExports._i18n.t;
+  clientExports._i18n.attachLocale({ getSnapshot: () => ({ active: 'zh-CN' }) });
+  const zhTitle = t(events[0].titleKey, events[0].titleParams, events[0].title);
+  assert.ok(zhTitle.includes('隔离'), zhTitle);
+  clientExports._i18n.attachLocale({ getSnapshot: () => ({ active: 'en-US' }) });
+  const enTitle = t(events[0].titleKey, events[0].titleParams, events[0].title);
+  assert.ok(enTitle.includes('quarantined'), enTitle);
+
+  ok('i18n: all host keys present in zh+en dicts; zh/en rendering live-switches');
+}
+
 console.log(`\n${passed} passed`);
