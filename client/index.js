@@ -35,9 +35,10 @@ window.__ModuleLoader__.load({
       introRed: 'one thing needs your decision (see below).',
       introRows: 'Each row is one watched aspect: "—" means all clear this session; "off" means that guard plugin is not installed.',
       introDismiss: 'Got it',
-      'status.ok': 'All clear — nothing suspicious reached your agent.',
-      'status.activity': 'Caught a few things — all handled, nothing needs you.',
-      'status.attention': 'Something needs your decision — see below.',
+      ack: 'Got it',
+      'status.ok': 'All clear — nothing suspicious.',
+      'status.activity': 'Caught a few things for you — all handled, nothing to do.',
+      'status.attention': '{count} thing(s) worth a look (below).',
       'ch.read': 'What the agent reads',
       'ch.write': 'What the agent changes',
       'ch.custody': 'The activity record',
@@ -99,9 +100,10 @@ window.__ModuleLoader__.load({
       introRed: '有一件事需要你决定(见下方)。',
       introRows: '每一行是一个被监控的方面:"—" 表示本次会话平安无事;"关" 表示对应的防护插件没有安装。',
       introDismiss: '知道了',
-      'status.ok': '一切正常——没有可疑内容接触到你的 agent。',
-      'status.activity': '拦下了几件事——都已处理,不需要你操作。',
-      'status.attention': '有情况需要你决定——见下方。',
+      ack: '知道了',
+      'status.ok': '一切正常,没有可疑情况。',
+      'status.activity': '帮你拦了一些事,已经处理好了,不用管。',
+      'status.attention': '有 {count} 件事建议你看一眼(在下面)。',
       'ch.read': 'Agent 读到的内容',
       'ch.write': 'Agent 改动的内容',
       'ch.custody': '活动记录',
@@ -135,8 +137,8 @@ window.__ModuleLoader__.load({
       'ev.custody.intactDetail': '哈希链从第一条校验到链头({head}…)。',
       'ev.custody.broken': '活动记录对不上——可能有条目被篡改或删除。',
       'ev.custody.brokenDetail': '链校验在第 #{seq} 条失败({reason})。检查一下谁可能改过台账文件。',
-      'ev.tools.drift': '你的 agent 可用的工具相对上次检查点发生了变化。',
-      'ev.tools.driftDetail': '{parts}:{names}。如果你没有安装或更新任何东西,需要查一下。',
+      'ev.tools.drift': 'agent 能用的工具和之前不一样了。',
+      'ev.tools.driftDetail': '变化:{parts}({names})。如果你刚装过或卸过插件,这正常;没有的话要查一下。',
       'ev.leave.clean': '工作区扫描未发现需要清理的东西。',
       'ev.leave.cleanDetail': '已检查 {protected} 个受保护条目。',
       'ev.leave.review': '工作区扫描发现 {count} 个值得查看的残留。',
@@ -213,7 +215,24 @@ window.__ModuleLoader__.load({
       return t('ago.d', { n: Math.floor(s / 86400) });
     }
 
-    function EventCard(ev) {
+    const ACK_KEY = 'dsh-trust-panel:acked';
+
+    function loadAcked() {
+      try {
+        return new Set(JSON.parse(window.localStorage.getItem(ACK_KEY) ?? '[]'));
+      } catch {
+        return new Set();
+      }
+    }
+
+    function eventKey(ev) {
+      return ev.time + '|' + ev.channel + '|' + ev.titleKey + '|' + (ev.titleParams ? JSON.stringify(ev.titleParams) : '');
+    }
+
+    function EventCard(props) {
+      const ev = props.ev;
+      const acked = props.acked !== undefined && props.acked.has(eventKey(ev));
+      if (acked) return null;
       const attention = ev.outcome === 'attention';
       const accent = attention ? C.attention : C.activity;
       const icon = attention ? '⚠️' : '🛡️';
@@ -222,15 +241,15 @@ window.__ModuleLoader__.load({
       return h(
         'div',
         {
-          key: `${ev.time}-${ev.channel}-${ev.titleKey}`,
+          key: eventKey(ev),
           style: {
             position: 'relative',
             padding: '10px 12px 10px 14px',
             marginBottom: 8,
             background: C.card,
             borderRadius: 8,
-            border: `1px solid ${attention ? 'rgba(239,68,68,0.35)' : 'rgba(127,127,127,0.15)'}`,
-            borderLeft: `3px solid ${accent}`,
+            border: '1px solid ' + (attention ? 'rgba(239,68,68,0.35)' : 'rgba(127,127,127,0.15)'),
+            borderLeft: '3px solid ' + accent,
             fontSize: 12,
             lineHeight: 1.55,
             transition: 'background .15s',
@@ -249,9 +268,30 @@ window.__ModuleLoader__.load({
             ? h('span', { style: { marginLeft: 'auto', fontSize: 10 } }, CHANNEL_ICON[ev.channel])
             : null
         ),
-        h('div', { style: { fontWeight: 500 } }, title),
+        h('div', { style: { fontWeight: 500, paddingRight: attention ? 56 : 0 } }, title),
         detail !== undefined
-          ? h('div', { style: { color: C.muted, marginTop: 3, fontSize: 11 } }, detail)
+          ? h('div', { style: { color: C.muted, marginTop: 3, fontSize: 11, paddingRight: attention ? 56 : 0 } }, detail)
+          : null,
+        attention
+          ? h(
+              'button',
+              {
+                onClick: () => props.onAck(eventKey(ev)),
+                style: {
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  fontSize: 10,
+                  padding: '2px 10px',
+                  cursor: 'pointer',
+                  borderRadius: 6,
+                  border: '1px solid ' + C.line,
+                  background: 'transparent',
+                  color: 'inherit',
+                },
+              },
+              t('ack')
+            )
           : null
       );
     }
@@ -312,6 +352,7 @@ window.__ModuleLoader__.load({
 
     function StatusHeader(props) {
       const status = props.status;
+      const attentionCount = props.attentionCount ?? 0;
       const color = C[status] ?? C.muted;
       return h(
         'div',
@@ -348,7 +389,7 @@ window.__ModuleLoader__.load({
         h(
           'span',
           { style: { fontSize: 13, fontWeight: 600, lineHeight: 1.35 } },
-          t(`status.${status}`)
+          t(`status.${status}`, status === 'attention' ? { count: attentionCount } : undefined)
         )
       );
     }
@@ -422,6 +463,7 @@ window.__ModuleLoader__.load({
 
     function TrustPanel() {
       const [summary, setSummary] = useState(null);
+      const [acked, setAcked] = useState(loadAcked);
 
       useEffect(() => {
         let stopped = false;
@@ -441,21 +483,39 @@ window.__ModuleLoader__.load({
         };
       }, []);
 
+      const onAck = (key) => {
+        setAcked((prev) => {
+          const next = new Set(prev);
+          next.add(key);
+          try {
+            window.localStorage.setItem(ACK_KEY, JSON.stringify([...next]));
+          } catch {
+            // private mode — acknowledge for this session only
+          }
+          return next;
+        });
+      };
+
       if (summary === null) {
         return h('div', { style: { padding: 16, fontSize: 12, color: C.muted } }, t('loading'));
       }
 
-      const totalAttention = summary.events.filter((e) => e.outcome === 'attention').length;
+      // Events the user has acknowledged disappear; the status light follows
+      // what remains, so confirming an item actually clears the state.
+      const visible = summary.events.filter((ev) => !acked.has(eventKey(ev)));
+      const attentionLeft = visible.filter((e) => e.outcome === 'attention').length;
+      const displayStatus = attentionLeft > 0 ? 'attention' : visible.length > 0 ? 'activity' : 'ok';
+
       return h(
         'div',
         { style: { padding: 12, fontFamily: 'system-ui, -apple-system, sans-serif' } },
         h(IntroCard),
-        h(StatusHeader, { status: summary.status }),
+        h(StatusHeader, { status: displayStatus, attentionCount: attentionLeft }),
         h(
           'div',
           {
             style: {
-              border: `1px solid ${C.line}`,
+              border: '1px solid ' + C.line,
               borderRadius: 10,
               padding: 6,
               marginBottom: 10,
@@ -464,14 +524,7 @@ window.__ModuleLoader__.load({
           },
           summary.channels.map((ch) => ChannelRow(ch))
         ),
-        totalAttention > 0
-          ? h(
-              'div',
-              { style: { fontSize: 10, color: C.faint, margin: '0 2px 6px', letterSpacing: 0.3 } },
-              `${totalAttention} · ${t('status.attention')}`
-            )
-          : null,
-        summary.events.length === 0
+        visible.length === 0
           ? h(
               'div',
               {
@@ -480,13 +533,13 @@ window.__ModuleLoader__.load({
                   textAlign: 'center',
                   fontSize: 12,
                   color: C.faint,
-                  border: `1px dashed ${C.line}`,
+                  border: '1px dashed ' + C.line,
                   borderRadius: 10,
                 },
               },
               t('noEvents')
             )
-          : summary.events.map((ev) => EventCard(ev))
+          : visible.map((ev) => h(EventCard, { key: eventKey(ev), ev, acked, onAck }))
       );
     }
 
