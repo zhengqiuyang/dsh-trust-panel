@@ -2,6 +2,8 @@
 
 > **If this helps you, please give it a star** — it helps others find it. Thanks!
 
+![demo: a tool-drift and a forgotten-constraint card acknowledged until the light turns green](docs/demo.gif)
+
 One plain-language dashboard for the [dsh trust family](https://github.com/zhengqiuyang/dsh-trust-suite) in your
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh) web sidebar: every interception,
 denial, drift and forgotten constraint across nine channels, translated into sentences a non-security
