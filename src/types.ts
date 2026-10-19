@@ -22,6 +22,11 @@ export type Channel =
 export type Outcome = 'handled' | 'attention';
 
 export interface TrustEvent {
+  /**
+   * Stable identity for state-like events (drift): acknowledgement is keyed
+   * on it, so a re-computed identical state does not resurrect as new.
+   */
+  key?: string;
   /** ISO timestamp. */
   time: string;
   channel: Channel;

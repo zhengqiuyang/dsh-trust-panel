@@ -226,6 +226,7 @@ window.__ModuleLoader__.load({
     }
 
     function eventKey(ev) {
+      if (ev.key !== undefined) return ev.key; // state-like: acknowledge by content, not timestamp
       return ev.time + '|' + ev.channel + '|' + ev.titleKey + '|' + (ev.titleParams ? JSON.stringify(ev.titleParams) : '');
     }
 

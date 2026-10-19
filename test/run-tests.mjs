@@ -215,4 +215,17 @@ function ok(name) {
   ok('i18n: all host keys present in zh+en dicts; zh/en rendering live-switches');
 }
 
+/* ---------- state-like events carry a stable ack key ---------- */
+
+{
+  const { toolSurfaceEvent } = await import('../lib/translate.js');
+  const a = toolSurfaceEvent(0, 1, 0, ['janitor_scan']);
+  const b = toolSurfaceEvent(0, 1, 0, ['janitor_scan']);
+  assert.strictEqual(a.key, b.key, 'identical drift must produce identical key');
+  const c = toolSurfaceEvent(1, 0, 0, ['other_tool']);
+  assert.notStrictEqual(a.key, c.key, 'different drift must produce different key');
+  assert.ok(a.key.startsWith('toolsurface:'), a.key);
+  ok('state events: stable ack key, content-derived');
+}
+
 console.log(`\n${passed} passed`);

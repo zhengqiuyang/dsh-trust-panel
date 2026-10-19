@@ -23,6 +23,7 @@ export function event(
   key: string,
   title: string,
   extra?: {
+    key?: string;
     params?: Record<string, string | number>;
     detailKey?: string;
     detail?: string;
@@ -33,6 +34,7 @@ export function event(
   }
 ): TrustEvent {
   return {
+    key: extra?.key,
     time: extra?.time ?? now(),
     channel,
     outcome,
@@ -157,6 +159,7 @@ export function toolSurfaceEvent(added: number, removed: number, changed: number
   if (removed > 0) parts.push(`${removed} removed`);
   if (changed > 0) parts.push(`${changed} changed`);
   return event('toolsurface', 'attention', 'ev.tools.drift', `The tools available to your agent changed since the last checkpoint.`, {
+    key: `toolsurface:${added}/${removed}/${changed}:${names.join(',')}`,
     detailKey: 'ev.tools.driftDetail',
     detail: `${parts.join(', ')}: ${names.slice(0, 5).join(', ')}${names.length > 5 ? '…' : ''}. If you did not install or update anything, look into it.`,
     detailParams: { parts: parts.join(', '), names: names.slice(0, 5).join(', ') },
@@ -199,6 +202,7 @@ export function egressDeniedEvent(urls: string[], source = 'dsh-egress-gate'): T
 
 export function promptDriftEvent(fields: string[], source = 'dsh-prompt-drift'): TrustEvent {
   return event('prompt', 'attention', 'ev.prompt.drift', `The instructions your agent starts every session with have changed.`, {
+    key: `prompt:${fields.join(',')}`,
     detailKey: 'ev.prompt.driftDetail',
     detail: `Changed sections: ${fields.join(', ')}. This is expected after a plugin update — unexpected if you changed nothing.`,
     detailParams: { fields: fields.join(', ') },
@@ -210,6 +214,7 @@ export function promptDriftEvent(fields: string[], source = 'dsh-prompt-drift'):
 
 export function compositionDriftEvent(fields: string[], source = 'dsh-freeze'): TrustEvent {
   return event('composition', 'attention', 'ev.composition.drift', `The set of installed plugins changed since the last checkpoint.`, {
+    key: `composition:${fields.join(',')}`,
     detailKey: 'ev.composition.driftDetail',
     detail: `Changed: ${fields.join(', ')}. Verify you intended this change before continuing.`,
     detailParams: { fields: fields.join(', ') },
