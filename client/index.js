@@ -310,7 +310,8 @@ window.__ModuleLoader__.load({
       );
     }
 
-    function StatusHeader(status) {
+    function StatusHeader(props) {
+      const status = props.status;
       const color = C[status] ?? C.muted;
       return h(
         'div',
