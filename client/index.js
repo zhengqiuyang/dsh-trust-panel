@@ -182,8 +182,28 @@ window.__ModuleLoader__.load({
 
     /* ---------------- rendering ---------------- */
 
-    const STATUS_COLOR = { ok: '#22c55e', activity: '#eab308', attention: '#ef4444' };
+    const C = {
+      ok: '#22c55e',
+      activity: '#e59e0b',
+      attention: '#ef4444',
+      muted: 'rgba(127,127,127,0.85)',
+      faint: 'rgba(127,127,127,0.55)',
+      line: 'rgba(127,127,127,0.22)',
+      card: 'rgba(127,127,127,0.07)',
+      cardHover: 'rgba(127,127,127,0.12)',
+    };
     const STATUS_DOT = { ok: '●', activity: '●', attention: '▲' };
+    const CHANNEL_ICON = {
+      read: '👁',
+      write: '✏️',
+      custody: '🔗',
+      toolsurface: '🧰',
+      leave: '🧹',
+      egress: '📤',
+      prompt: '📜',
+      composition: '🧩',
+      memory: '🧠',
+    };
 
     function timeAgo(iso) {
       const s = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 1000));
@@ -194,7 +214,9 @@ window.__ModuleLoader__.load({
     }
 
     function EventCard(ev) {
-      const color = ev.outcome === 'attention' ? '#ef4444' : '#6b7280';
+      const attention = ev.outcome === 'attention';
+      const accent = attention ? C.attention : C.activity;
+      const icon = attention ? '⚠️' : '🛡️';
       const title = t(ev.titleKey, ev.titleParams, ev.title);
       const detail = ev.detailKey !== undefined ? t(ev.detailKey, ev.detailParams, ev.detail) : ev.detail;
       return h(
@@ -202,33 +224,130 @@ window.__ModuleLoader__.load({
         {
           key: `${ev.time}-${ev.channel}-${ev.titleKey}`,
           style: {
-            borderLeft: `3px solid ${color}`,
-            padding: '8px 10px',
-            marginBottom: 6,
-            background: 'rgba(127,127,127,0.08)',
-            borderRadius: 4,
+            position: 'relative',
+            padding: '10px 12px 10px 14px',
+            marginBottom: 8,
+            background: C.card,
+            borderRadius: 8,
+            border: `1px solid ${attention ? 'rgba(239,68,68,0.35)' : 'rgba(127,127,127,0.15)'}`,
+            borderLeft: `3px solid ${accent}`,
             fontSize: 12,
-            lineHeight: 1.5,
+            lineHeight: 1.55,
+            transition: 'background .15s',
           },
+          onMouseEnter: (e) => { e.currentTarget.style.background = C.cardHover; },
+          onMouseLeave: (e) => { e.currentTarget.style.background = C.card; },
         },
-        h('div', { style: { color: '#9ca3af', fontSize: 10 } }, `${timeAgo(ev.time)} · ${ev.source}`),
-        h('div', { style: { marginTop: 2 } }, title),
-        detail !== undefined ? h('div', { style: { color: '#9ca3af', marginTop: 2 } }, detail) : null
+        h(
+          'div',
+          { style: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, color: C.faint, fontSize: 10, letterSpacing: 0.2 } },
+          h('span', { style: { fontSize: 11 } }, icon),
+          h('span', null, timeAgo(ev.time)),
+          h('span', null, '·'),
+          h('span', null, ev.source),
+          CHANNEL_ICON[ev.channel] !== undefined
+            ? h('span', { style: { marginLeft: 'auto', fontSize: 10 } }, CHANNEL_ICON[ev.channel])
+            : null
+        ),
+        h('div', { style: { fontWeight: 500 } }, title),
+        detail !== undefined
+          ? h('div', { style: { color: C.muted, marginTop: 3, fontSize: 11 } }, detail)
+          : null
       );
     }
 
     function ChannelRow(ch) {
+      const hasEvents = ch.present && ch.count > 0;
       return h(
         'div',
         {
           key: ch.channel,
-          style: { display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '3px 0', opacity: ch.present ? 1 : 0.4 },
+          title: t(ch.noteKey, ch.noteParams, ch.note),
+          style: {
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 11,
+            padding: '4px 6px',
+            borderRadius: 6,
+            opacity: ch.present ? 1 : 0.42,
+          },
         },
-        h('span', { title: t(ch.noteKey, ch.noteParams, ch.note) }, t(ch.labelKey, undefined, ch.label)),
+        h('span', { style: { width: 16, textAlign: 'center', fontSize: 11 } }, CHANNEL_ICON[ch.channel] ?? '·'),
+        h('span', { style: { flex: 1 } }, t(ch.labelKey, undefined, ch.label)),
+        ch.present
+          ? hasEvents
+            ? h(
+                'span',
+                {
+                  style: {
+                    minWidth: 18,
+                    textAlign: 'center',
+                    padding: '1px 6px',
+                    borderRadius: 999,
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: '#fff',
+                    background: C.activity,
+                  },
+                },
+                String(ch.count)
+              )
+            : h('span', { style: { color: C.faint } }, '—')
+          : h(
+              'span',
+              {
+                style: {
+                  padding: '1px 6px',
+                  borderRadius: 4,
+                  fontSize: 10,
+                  color: C.muted,
+                  border: `1px solid ${C.line}`,
+                },
+              },
+              t('off')
+            )
+      );
+    }
+
+    function StatusHeader(status) {
+      const color = C[status] ?? C.muted;
+      return h(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '10px 12px',
+            borderRadius: 10,
+            background: `linear-gradient(135deg, ${color}22, ${color}0a)`,
+            border: `1px solid ${color}44`,
+            marginBottom: 10,
+          },
+        },
         h(
           'span',
-          { style: { color: ch.count > 0 ? '#eab308' : '#6b7280' } },
-          ch.present ? (ch.count > 0 ? String(ch.count) : '—') : t('off')
+          {
+            style: {
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 28,
+              height: 28,
+              borderRadius: 999,
+              fontSize: 15,
+              color,
+              background: `${color}1f`,
+              boxShadow: `0 0 10px ${color}55`,
+            },
+          },
+          STATUS_DOT[status] ?? '●'
+        ),
+        h(
+          'span',
+          { style: { fontSize: 13, fontWeight: 600, lineHeight: 1.35 } },
+          t(`status.${status}`)
         )
       );
     }
@@ -248,24 +367,31 @@ window.__ModuleLoader__.load({
         'div',
         {
           style: {
-            border: '1px solid rgba(127,127,127,0.35)',
-            borderRadius: 6,
-            padding: 10,
+            border: `1px solid ${C.line}`,
+            borderRadius: 10,
+            padding: 12,
             marginBottom: 10,
             fontSize: 11,
-            lineHeight: 1.6,
-            background: 'rgba(127,127,127,0.06)',
+            lineHeight: 1.65,
+            background: C.card,
           },
         },
-        h('div', null, t('intro')),
         h(
           'div',
-          { style: { marginTop: 6 } },
-          h('span', { style: { color: '#22c55e' } }, '● '), t('introGreen'), '  ',
-          h('span', { style: { color: '#eab308' } }, '● '), t('introYellow'), '  ',
-          h('span', { style: { color: '#ef4444' } }, '▲ '), t('introRed')
+          { style: { display: 'flex', gap: 8 } },
+          h('span', { style: { fontSize: 14 } }, '🛡️'),
+          h('div', null,
+            h('div', null, t('intro')),
+            h(
+              'div',
+              { style: { marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: '2px 10px' } },
+              h('span', null, h('span', { style: { color: C.ok } }, '● '), t('introGreen')),
+              h('span', null, h('span', { style: { color: C.activity } }, '● '), t('introYellow')),
+              h('span', null, h('span', { style: { color: C.attention } }, '▲ '), t('introRed'))
+            ),
+            h('div', { style: { marginTop: 6, color: C.muted } }, t('introRows'))
+          )
         ),
-        h('div', { style: { marginTop: 6 } }, t('introRows')),
         h(
           'button',
           {
@@ -277,7 +403,16 @@ window.__ModuleLoader__.load({
               }
               setDismissed(true);
             },
-            style: { marginTop: 8, fontSize: 11, padding: '2px 10px', cursor: 'pointer' },
+            style: {
+              marginTop: 8,
+              fontSize: 11,
+              padding: '3px 14px',
+              cursor: 'pointer',
+              borderRadius: 6,
+              border: `1px solid ${C.line}`,
+              background: 'transparent',
+              color: 'inherit',
+            },
           },
           t('introDismiss')
         )
@@ -306,27 +441,50 @@ window.__ModuleLoader__.load({
       }, []);
 
       if (summary === null) {
-        return h('div', { style: { padding: 12, fontSize: 12, color: '#6b7280' } }, t('loading'));
+        return h('div', { style: { padding: 16, fontSize: 12, color: C.muted } }, t('loading'));
       }
 
-      const color = STATUS_COLOR[summary.status] ?? '#6b7280';
+      const totalAttention = summary.events.filter((e) => e.outcome === 'attention').length;
       return h(
         'div',
-        { style: { padding: 12, fontFamily: 'system-ui, sans-serif' } },
+        { style: { padding: 12, fontFamily: 'system-ui, -apple-system, sans-serif' } },
         h(IntroCard),
+        h(StatusHeader, { status: summary.status }),
         h(
           'div',
-          { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 } },
-          h('span', { style: { color, fontSize: 18 } }, STATUS_DOT[summary.status] ?? '●'),
-          h('span', { style: { fontSize: 13, fontWeight: 600 } }, t(`status.${summary.status}`, undefined, summary.statusText))
-        ),
-        h(
-          'div',
-          { style: { borderBottom: '1px solid rgba(127,127,127,0.25)', paddingBottom: 6, marginBottom: 8 } },
+          {
+            style: {
+              border: `1px solid ${C.line}`,
+              borderRadius: 10,
+              padding: 6,
+              marginBottom: 10,
+              background: C.card,
+            },
+          },
           summary.channels.map((ch) => ChannelRow(ch))
         ),
+        totalAttention > 0
+          ? h(
+              'div',
+              { style: { fontSize: 10, color: C.faint, margin: '0 2px 6px', letterSpacing: 0.3 } },
+              `${totalAttention} · ${t('status.attention')}`
+            )
+          : null,
         summary.events.length === 0
-          ? h('div', { style: { fontSize: 12, color: '#6b7280' } }, t('noEvents'))
+          ? h(
+              'div',
+              {
+                style: {
+                  padding: '18px 12px',
+                  textAlign: 'center',
+                  fontSize: 12,
+                  color: C.faint,
+                  border: `1px dashed ${C.line}`,
+                  borderRadius: 10,
+                },
+              },
+              t('noEvents')
+            )
           : summary.events.map((ev) => EventCard(ev))
       );
     }
