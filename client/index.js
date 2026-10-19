@@ -28,6 +28,13 @@ window.__ModuleLoader__.load({
       tabTitle: 'Trust',
       loading: 'Loading trust panel…',
       noEvents: 'No events yet.',
+      intro: 'This panel is your agent\'s dashcam: it watches what the agent reads, changes, and sends, and reports anything suspicious. Most of the time it should be green.',
+      introStatus: 'Status light:',
+      introGreen: 'nothing suspicious.',
+      introYellow: 'caught something, already handled.',
+      introRed: 'one thing needs your decision (see below).',
+      introRows: 'Each row is one watched aspect: "—" means all clear this session; "off" means that guard plugin is not installed.',
+      introDismiss: 'Got it',
       'status.ok': 'All clear — nothing suspicious reached your agent.',
       'status.activity': 'Caught a few things — all handled, nothing needs you.',
       'status.attention': 'Something needs your decision — see below.',
@@ -85,6 +92,13 @@ window.__ModuleLoader__.load({
       tabTitle: '信任',
       loading: '信任面板加载中…',
       noEvents: '还没有事件。',
+      intro: '这个面板是你 agent 的行车记录仪:它盯着 agent 读什么、改什么、往哪发,有可疑就报告。大多数时候它应该是绿的。',
+      introStatus: '状态灯:',
+      introGreen: '没有可疑情况。',
+      introYellow: '拦到了什么,已经处理好了。',
+      introRed: '有一件事需要你决定(见下方)。',
+      introRows: '每一行是一个被监控的方面:"—" 表示本次会话平安无事;"关" 表示对应的防护插件没有安装。',
+      introDismiss: '知道了',
       'status.ok': '一切正常——没有可疑内容接触到你的 agent。',
       'status.activity': '拦下了几件事——都已处理,不需要你操作。',
       'status.attention': '有情况需要你决定——见下方。',
@@ -219,6 +233,57 @@ window.__ModuleLoader__.load({
       );
     }
 
+    const INTRO_KEY = 'dsh-trust-panel:intro-dismissed';
+
+    function IntroCard() {
+      const [dismissed, setDismissed] = useState(() => {
+        try {
+          return window.localStorage.getItem(INTRO_KEY) === '1';
+        } catch {
+          return false;
+        }
+      });
+      if (dismissed) return null;
+      return h(
+        'div',
+        {
+          style: {
+            border: '1px solid rgba(127,127,127,0.35)',
+            borderRadius: 6,
+            padding: 10,
+            marginBottom: 10,
+            fontSize: 11,
+            lineHeight: 1.6,
+            background: 'rgba(127,127,127,0.06)',
+          },
+        },
+        h('div', null, t('intro')),
+        h(
+          'div',
+          { style: { marginTop: 6 } },
+          h('span', { style: { color: '#22c55e' } }, '● '), t('introGreen'), '  ',
+          h('span', { style: { color: '#eab308' } }, '● '), t('introYellow'), '  ',
+          h('span', { style: { color: '#ef4444' } }, '▲ '), t('introRed')
+        ),
+        h('div', { style: { marginTop: 6 } }, t('introRows')),
+        h(
+          'button',
+          {
+            onClick: () => {
+              try {
+                window.localStorage.setItem(INTRO_KEY, '1');
+              } catch {
+                // private mode — just hide for this session
+              }
+              setDismissed(true);
+            },
+            style: { marginTop: 8, fontSize: 11, padding: '2px 10px', cursor: 'pointer' },
+          },
+          t('introDismiss')
+        )
+      );
+    }
+
     function TrustPanel() {
       const [summary, setSummary] = useState(null);
 
@@ -248,6 +313,7 @@ window.__ModuleLoader__.load({
       return h(
         'div',
         { style: { padding: 12, fontFamily: 'system-ui, sans-serif' } },
+        h(IntroCard),
         h(
           'div',
           { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 } },
