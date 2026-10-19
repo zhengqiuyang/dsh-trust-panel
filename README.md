@@ -9,11 +9,11 @@ user can read and act on. Zero LLM calls.
 
 ## What you see
 
-A status light and event cards — that's it:
+A status light, nine channel rows, and event cards — that's it:
 
-- 🟢 **All clear** — nothing suspicious reached your agent
-- 🟡 **Caught a few things — all handled, nothing needs you**
-- 🔴 **Something needs your decision — see below**
+- 🟢 **All clear — nothing suspicious**
+- 🟡 **Caught a few things for you — all handled, nothing to do**
+- 🔴 **{n} thing(s) worth a look (below)** — each such card carries a **Got it** button; acknowledging it clears the state, and the light falls back on its own
 
 Every event answers the same four questions in order: *who, what they tried, what we did about it,
 whether you must act.* Engine jargon (`INSTR_OVERRIDE`, hash-chain digests, surface drift) stays in the
@@ -24,6 +24,19 @@ expandable detail; the headline is a sentence like:
 > A long conversation was summarized — the agent forgot 2 of your instructions. They were re-inserted automatically.
 >
 > The tools available to your agent changed since the last checkpoint. 1 removed: janitor_scan.
+
+A first-run intro card explains the light and the row semantics in one glance; it dismisses with one
+click and stays dismissed.
+
+## Bilingual (zh/en)
+
+The panel follows the DSH i18n system: events travel from the host as **translation keys +
+params**, the client renders them through its zh/en dictionaries with the host's `locale` service
+(language switches live, browser language as fallback). A regression test pins the contract: every
+key the host can produce must exist in both dictionaries.
+
+State-like events (tool-surface / prompt / composition drift) carry a **content-derived stable id**:
+acknowledging one sticks across polling, and a genuinely new drift arrives as a genuinely new card.
 
 ## The nine channels
 
@@ -57,6 +70,8 @@ Configuration (in `cordis.yml`): `eventsPath` (panel event log), `maxEvents`, an
 - **The trust path stays deterministic** — the panel only reads files and harness events; it never calls a model.
 - **Translation, not display** — the engine terminology the family logs internally is mapped to plain sentences in `translate.ts`; the mapping is unit-tested, so a rule rename cannot silently regress the wording.
 - **Poll, don't push (v0.1)** — the client polls `/trust-panel/api/summary` every 5 s; a WebSocket upgrade can come later without changing the model.
+- **Web client modules are not plain ESM** — dsh's web runtime loads client halves through its `window.__ModuleLoader__` module table (react arrives via that table's `require`, not a bundler). This package authors its client directly in that format and ships it unbuilt; a rolldown build is unnecessary at this size. Undocumented upstream, learned the hard way.
+- **Native sidebar tabs are address-driven** — registering a tab kind shows nothing until the `sidebarRight` controller opens it; the panel calls `openTab` once per session so the light is visible out of the box.
 
 ## Kill criteria
 
@@ -69,7 +84,8 @@ translations — a trust UI that lies is worse than none.
 - Verified on DSH 0.2.x (source snapshot 0.2.1-alpha.2, 2026-10-19): disposable-profile
   install → boot → right-sidebar tab compose → `/trust-panel/api/summary` responds with
   live aggregation (including a true-positive tool-surface drift detection during the
-  verification boot).
+  verification boot), Chinese rendering verified in-browser, acknowledge flow verified
+  across poll cycles by browser automation.
 - Node ≥ 20.
 
 ## License
