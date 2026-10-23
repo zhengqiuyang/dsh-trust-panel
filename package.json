@@ -1,6 +1,6 @@
 {
   "name": "dsh-trust-panel",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "One plain-language dashboard for the dsh trust family: every interception, denial, drift and forgotten constraint across the nine channels, translated into sentences a non-security user can act on. Zero LLM calls",
   "type": "module",
   "license": "MIT",

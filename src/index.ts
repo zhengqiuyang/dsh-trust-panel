@@ -20,7 +20,7 @@ import { checkUrls, urlsFromShellCommand, urlsFromWebArgs, type EgressPolicy } f
 import type { ToolSurfaceSnapshot } from 'dsh-mcp-test/lib/diff.js';
 
 export const name = 'dsh-trust-panel';
-export const inject = ['webServer', 'tools'];
+export const inject = ['tools'];
 
 export interface Config {
   /** Where the panel persists its own event log; empty disables persistence. */
@@ -133,16 +133,14 @@ export function apply(ctx: Context, config: Config): void {
     return next();
   });
 
-  /* ---- HTTP route for the web client ---- */
+  /* ---- HTTP route for the web client (mounted only when a webServer exists) ---- */
 
-  const webServer = (ctx as unknown as {
-    webServer: { register(route: { kind: string; path: string; handler: (req: unknown, res: unknown) => Promise<void> }): unknown };
-  }).webServer;
+  type WebServerLike = { register(route: { kind: string; path: string; handler: (req: unknown, res: unknown) => Promise<void> }): unknown };
   const tools = (ctx as unknown as {
     tools: { schemas(): { name: string; description: string; parameters: unknown }[] };
   }).tools;
 
-  const registerRoute = (): void => {
+  const registerRoute = (webServer: WebServerLike): void => {
     void webServer.register({
       kind: 'exact',
       path: '/trust-panel/api/summary',
@@ -164,9 +162,9 @@ export function apply(ctx: Context, config: Config): void {
       },
     });
   };
-  ctx.effect(() => {
-    registerRoute();
-    return () => undefined;
+  (ctx as unknown as { inject(deps: string[], cb: (scoped: Context) => void): unknown }).inject(['webServer'], (scoped) => {
+    const server = (scoped as unknown as { webServer?: WebServerLike }).webServer;
+    if (server !== undefined) registerRoute(server);
   });
 
   // Minimal service so family plugins can push their own events without a
