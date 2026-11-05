@@ -86,10 +86,10 @@ export function readFindingEvent(
     'read',
     'handled',
     `ev.read.${whatKey}`,
-    `Something the agent read ${what}. It was quarantined — the agent did not follow it.`,
+    `Something the agent read ${what}. Flagged for review.`,
     {
       detailKey: 'ev.read.detail',
-      detail: `Found while reading ${toolName}. Detail: ${ruleId} (${severity}).`,
+      detail: `Found while reading ${toolName} (mirror scan). Detail: ${ruleId} (${severity}). With dsh-read-guard installed, matching content is wrapped in a quarantine envelope.`,
       detailParams: { tool: toolName, rule: ruleId, severity },
       evidence,
       source,
@@ -190,9 +190,10 @@ export function janitorEvent(needsReview: number, protectedCount: number, source
 /* ---------------- egress channel (dsh-egress-gate) ---------------- */
 
 export function egressDeniedEvent(urls: string[], source = 'dsh-egress-gate'): TrustEvent {
-  return event('egress', 'handled', 'ev.egress.denied', `The agent tried to send data to a website that is not on your allow list. Blocked.`, {
-    detailKey: 'ev.egress.deniedDetail',
-    detail: `Destination: ${urls.join(', ')}. Add it to the allow list if this send was intended.`,
+  return event('egress', 'handled', 'ev.egress.flagged', `The agent tried to reach a website that is not on your allow list. Flagged.`, {
+    key: `egress:${urls.join(',')}`,
+    detailKey: 'ev.egress.flaggedDetail',
+    detail: `Destination: ${urls.join(', ')}. Install dsh-egress-gate to enforce, or add the host to the allow list if intended.`,
     detailParams: { urls: urls.join(', ') },
     source,
   });
@@ -239,7 +240,7 @@ export function compactionEvent(line: CompactionLine, source = 'dsh-compaction-g
       source,
     });
   }
-  return event('memory', 'attention', 'ev.memory.lost', `A long conversation was summarized — the agent forgot ${line.lost.length} of your instructions. They were re-inserted automatically.`, {
+  return event('memory', 'attention', 'ev.memory.lost', `A long conversation was summarized — the agent forgot ${line.lost.length} of your instructions. They were reported for you to restate.`, {
     params: { lost: line.lost.length },
     detailKey: 'ev.memory.lostDetail',
     detail: line.lost

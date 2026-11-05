@@ -21,9 +21,9 @@ Every event answers the same four questions in order: *who, what they tried, wha
 whether you must act.* Engine jargon (`INSTR_OVERRIDE`, hash-chain digests, surface drift) stays in the
 expandable detail; the headline is a sentence like:
 
-> Something the agent read tried to send your credentials somewhere. It was quarantined — the agent did not follow it.
+> Something the agent read asked it to send your credentials somewhere. Flagged for review.
 >
-> A long conversation was summarized — the agent forgot 2 of your instructions. They were re-inserted automatically.
+> A long conversation was summarized — the agent forgot 2 of your instructions. Reported so you can restate them.
 >
 > The tools available to your agent changed since the last checkpoint. 1 removed: janitor_scan.
 

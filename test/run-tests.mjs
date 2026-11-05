@@ -24,7 +24,7 @@ function ok(name) {
 
 {
   const ev = readFindingEvent('INSTR_OVERRIDE', 'high', 'IGNORE PREVIOUS INSTRUCTIONS ...', 'read_file');
-  assert.ok(ev.title.includes('quarantined'));
+  assert.ok(ev.title.includes('Flagged for review.'));
   assert.equal(ev.outcome, 'handled');
   assert.equal(ev.channel, 'read');
   ok('readFindingEvent translates to plain language, handled');
@@ -207,10 +207,10 @@ function ok(name) {
   const t = clientExports._i18n.t;
   clientExports._i18n.attachLocale({ getSnapshot: () => ({ active: 'zh-CN' }) });
   const zhTitle = t(events[0].titleKey, events[0].titleParams, events[0].title);
-  assert.ok(zhTitle.includes('隔离'), zhTitle);
+  assert.ok(zhTitle.includes('已标记待查'), zhTitle);
   clientExports._i18n.attachLocale({ getSnapshot: () => ({ active: 'en-US' }) });
   const enTitle = t(events[0].titleKey, events[0].titleParams, events[0].title);
-  assert.ok(enTitle.includes('quarantined'), enTitle);
+  assert.ok(enTitle.includes('Flagged for review.'), enTitle);
 
   ok('i18n: all host keys present in zh+en dicts; zh/en rendering live-switches');
 }
