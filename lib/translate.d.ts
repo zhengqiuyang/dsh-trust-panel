@@ -31,6 +31,7 @@ export interface PrGateLine {
 }
 export declare function prGateEvent(line: PrGateLine): TrustEvent | null;
 export declare function custodyVerifiedEvent(count: number, headDigest: string, source?: string): TrustEvent;
+export declare function custodyDigestOnlyEvent(count: number, headDigest: string, source?: string): TrustEvent;
 export declare function custodyBrokenEvent(seq: number, reason: string, source?: string): TrustEvent;
 export declare function toolSurfaceEvent(added: number, removed: number, changed: number, names: string[]): TrustEvent;
 export declare function janitorEvent(needsReview: number, protectedCount: number, source?: string): TrustEvent;

@@ -142,6 +142,16 @@ export function custodyVerifiedEvent(count: number, headDigest: string, source =
   });
 }
 
+export function custodyDigestOnlyEvent(count: number, headDigest: string, source = 'dsh-attest-chain'): TrustEvent {
+  return event('custody', 'handled', 'ev.custody.digestOnly', `The activity record is self-consistent — ${count} entries, but no signing key was available, so signatures were not checked.`, {
+    params: { count },
+    detailKey: 'ev.custody.digestOnlyDetail',
+    detail: `Hash chain links verified (head ${headDigest.slice(0, 16)}…). Install the key session_ed25519.pub.pem to verify signatures too.`,
+    detailParams: { head: headDigest.slice(0, 16) },
+    source,
+  });
+}
+
 export function custodyBrokenEvent(seq: number, reason: string, source = 'dsh-attest-chain'): TrustEvent {
   return event('custody', 'attention', 'ev.custody.broken', `The activity record does not add up — an entry may have been altered or removed.`, {
     detailKey: 'ev.custody.brokenDetail',

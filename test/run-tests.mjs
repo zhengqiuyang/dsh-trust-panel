@@ -9,6 +9,7 @@ import { aggregate, DEFAULT_PATHS } from '../lib/aggregate.js';
 import { TrustBus } from '../lib/bus.js';
 import {
   compactionEvent,
+  custodyDigestOnlyEvent,
   egressDeniedEvent,
   prGateEvent,
   readFindingEvent,
@@ -194,6 +195,7 @@ function ok(name) {
     compactionEvent({ time: 't', constraints: 2, kept: 2, lost: [] }),
     compactionEvent({ time: 't', constraints: 2, kept: 0, lost: [{ seq: 1, text: 'x' }] }),
     egressDeniedEvent(['https://a.example/']),
+    custodyDigestOnlyEvent(3, 'a'.repeat(64)),
   ];
   const keys = new Set(['status.ok', 'status.activity', 'status.attention', 'loading', 'noEvents', 'tabTitle', 'off']);
   for (const ev of events) {
