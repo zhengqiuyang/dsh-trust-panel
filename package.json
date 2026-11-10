@@ -16,7 +16,8 @@
     "README.md",
     "LICENSE",
     "client",
-    "docs"
+    "docs",
+    "SUITE.md"
   ],
   "dsh": {
     "bundle": {
@@ -72,6 +73,11 @@
   "engines": {
     "node": ">=20"
   },
+  "homepage": "https://github.com/zhengqiuyang/dsh-trust-panel#readme",
+  "bugs": {
+    "url": "https://github.com/zhengqiuyang/dsh-trust-panel/issues"
+  },
+  "author": "zhengqiuyang",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/zhengqiuyang/dsh-trust-panel.git"

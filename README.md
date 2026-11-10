@@ -1,5 +1,11 @@
 # dsh-trust-panel
 
+[![CI](https://github.com/zhengqiuyang/dsh-trust-panel/actions/workflows/ci.yml/badge.svg)](https://github.com/zhengqiuyang/dsh-trust-panel/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/dsh-trust-panel)](https://www.npmjs.com/package/dsh-trust-panel)
+[![license](https://img.shields.io/npm/l/dsh-trust-panel)](https://github.com/zhengqiuyang/dsh-trust-panel/blob/main/LICENSE)
+
+> Part of the [DSH trust layer](https://github.com/zhengqiuyang/dsh-trust-panel/blob/main/SUITE.md) — ten deterministic checks, no LLM in the trust path.
+
 > **If this helps you, please give it a star** — it helps others find it. Thanks!
 
 ![demo: a tool-drift and a forgotten-constraint card acknowledged until the light turns green](docs/demo.gif)
